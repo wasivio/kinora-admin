@@ -1,0 +1,82 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Check if user is authenticated via Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Check if user has role 'admin' or 'super_admin' in Firestore
+    function isAdmin() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role in ['admin', 'super_admin']) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin'])
+      );
+    }
+
+    // Admins collection: Authenticated user can read to verify role, write their own doc or manage if admin
+    match /admins/{adminId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (request.auth.uid == adminId || isAdmin());
+    }
+
+    // Products: Public read for storefront, only admin can create/edit/delete
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Categories: Public read for storefront navigation, only admin can create/edit/delete
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Banners: Public read for homepage showcases, only admin can create/edit/delete
+    match /banners/{bannerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Coupons: Public read for checkout validation, only admin can create/edit/delete
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Store Settings: Public read for store info & currency, only admin can create/edit/delete
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders: Authenticated users can manage orders
+    match /orders/{orderId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Users / Customers: Authenticated users can manage accounts
+    match /users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /customers/{customerId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Notifications: Only admin can read/write
+    match /notifications/{notificationId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Reviews (storefront): Public read, authenticated write
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+  }
+}

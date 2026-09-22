@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#09090B] text-[#F4F4F5] antialiased selection:bg-[#D4AF37] selection:text-black;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Luxury Gold Text Gradient */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #FFF0B3 0%, #D4AF37 50%, #AA771C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gold-metallic {
+  background: linear-gradient(to right, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.border-gold-subtle {
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+.bg-gold-glass {
+  background: rgba(212, 175, 55, 0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.gold-glow {
+  box-shadow: 0 0 20px -3px rgba(212, 175, 55, 0.25);
+}
+
+/* Custom Luxury Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0E0E10;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272A;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D4AF37;
+}
