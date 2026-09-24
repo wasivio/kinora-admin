@@ -17,11 +17,13 @@ export const Categories: React.FC = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  const filteredCategories = categories.filter((c) =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.subcategories.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredCategories = categories.filter((c) => {
+    const search = (searchTerm || '').toLowerCase();
+    const name = (c?.name || '').toLowerCase();
+    const slug = (c?.slug || '').toLowerCase();
+    const subMatch = (c?.subcategories || []).some((s) => (s || '').toLowerCase().includes(search));
+    return name.includes(search) || slug.includes(search) || subMatch;
+  });
 
   const handleEdit = (cat: Category) => {
     setCategoryToEdit(cat);
