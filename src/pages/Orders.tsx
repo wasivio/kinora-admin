@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Search, Eye } from 'lucide-react';
+import { ShoppingBag, Search, Eye, Clock, Sparkles } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { Card } from '../components/common/Card';
@@ -16,6 +16,13 @@ export const Orders: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+  // Always sort newest orders on top
+  const sortedOrders = [...orders].sort((a, b) => {
+    const timeA = new Date(a.createdAt).getTime() || 0;
+    const timeB = new Date(b.createdAt).getTime() || 0;
+    return timeB - timeA;
+  });
+
   // Tabs
   const tabs = [
     { id: 'all', label: 'All Orders', count: orders.length },
@@ -27,7 +34,7 @@ export const Orders: React.FC = () => {
   ];
 
   // Filtering
-  const filteredOrders = orders.filter((o) => {
+  const filteredOrders = sortedOrders.filter((o) => {
     const matchesTab = activeTab === 'all' || o.orderStatus === activeTab;
     const search = (searchTerm || '').toLowerCase();
     const matchesSearch =
@@ -138,7 +145,7 @@ export const Orders: React.FC = () => {
               <thead className="bg-[#16161a] text-[10px] text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
                 <tr>
                   <th className="p-4 font-semibold">Order ID</th>
-                  <th className="p-4 font-semibold">Date</th>
+                  <th className="p-4 font-semibold">Date & Time</th>
                   <th className="p-4 font-semibold">Client</th>
                   <th className="p-4 font-semibold">Items</th>
                   <th className="p-4 font-semibold">Payment</th>
@@ -155,10 +162,38 @@ export const Orders: React.FC = () => {
                     className="hover:bg-zinc-800/30 transition-colors cursor-pointer group"
                   >
                     <td className="p-4 font-mono font-semibold text-white group-hover:text-gold-light">
-                      {ord.orderNumber}
+                      <div className="flex items-center gap-2">
+                        <span>{ord.orderNumber}</span>
+                        {ord.createdAt && (Date.now() - new Date(ord.createdAt).getTime() < 86400000) && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-gold-primary/20 border border-gold-primary/40 text-gold-light text-[9px] font-bold uppercase tracking-wider flex items-center gap-0.5">
+                            <Sparkles className="w-2.5 h-2.5 text-gold-primary" />
+                            NEW
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-4 text-zinc-400">
-                      {new Date(ord.createdAt).toLocaleDateString()}
+                    <td className="p-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-zinc-200 text-xs">
+                          {ord.createdAt
+                            ? new Date(ord.createdAt).toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            : 'N/A'}
+                        </span>
+                        <span className="text-[11px] text-gold-light font-mono mt-0.5 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-gold-primary shrink-0" />
+                          {ord.createdAt
+                            ? new Date(ord.createdAt).toLocaleTimeString('en-IN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: true,
+                              })
+                            : '--:--'}
+                        </span>
+                      </div>
                     </td>
                     <td className="p-4">
                       <p className="font-semibold text-zinc-200">{ord.customerName}</p>

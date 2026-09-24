@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Plus,
   ArrowRight,
+  Clock,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -408,6 +409,7 @@ export const Dashboard: React.FC = () => {
               <thead className="text-[10px] text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
                 <tr>
                   <th className="pb-3 font-semibold">Order</th>
+                  <th className="pb-3 font-semibold">Date & Time</th>
                   <th className="pb-3 font-semibold">Client</th>
                   <th className="pb-3 font-semibold">Status</th>
                   <th className="pb-3 font-semibold text-right">Amount</th>
@@ -421,6 +423,26 @@ export const Dashboard: React.FC = () => {
                     className="hover:bg-zinc-800/40 cursor-pointer transition-colors"
                   >
                     <td className="py-3 font-mono font-medium text-white">{ord.orderNumber}</td>
+                    <td className="py-3 whitespace-nowrap">
+                      <p className="text-zinc-200 text-xs font-medium">
+                        {ord.createdAt
+                          ? new Date(ord.createdAt).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                            })
+                          : 'N/A'}
+                      </p>
+                      <p className="text-[10px] text-gold-light/90 font-mono mt-0.5 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5 text-gold-primary shrink-0" />
+                        {ord.createdAt
+                          ? new Date(ord.createdAt).toLocaleTimeString('en-IN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true,
+                            })
+                          : '--:--'}
+                      </p>
+                    </td>
                     <td className="py-3">
                       <p className="font-medium text-zinc-200">{ord.customerName}</p>
                       <p className="text-[10px] text-zinc-500">{ord.items.length} item(s)</p>

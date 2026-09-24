@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { StoreProvider } from './context/StoreContext';
 import { AdminLayout } from './components/layout/AdminLayout';
+import { Toaster } from 'sonner';
 
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -18,6 +19,7 @@ import { Settings } from './pages/Settings';
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
+      <Toaster richColors position="top-right" theme="dark" closeButton />
       <AuthProvider>
         <StoreProvider>
           <Routes>

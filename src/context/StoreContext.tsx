@@ -21,6 +21,46 @@ import {
   StoreSettings 
 } from '../types';
 import { initialSettings } from '../lib/mockData';
+import { toast } from 'sonner';
+
+// Luxury two-tone audio chime for new incoming orders
+export const playOrderChime = () => {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const now = ctx.currentTime;
+    
+    // First tone (E5 - 659.25 Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(659.25, now);
+    gain1.gain.setValueAtTime(0.35, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.6);
+
+    // Second tone (A5 - 880 Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, now + 0.15);
+    gain2.gain.setValueAtTime(0.4, now + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.15);
+    osc2.stop(now + 0.9);
+  } catch (err) {
+    console.debug('Audio chime skipped:', err);
+  }
+};
 
 interface StoreContextType {
   products: Product[];
@@ -62,6 +102,7 @@ interface StoreContextType {
   deleteCoupon: (id: string) => Promise<void>;
 
   // Notification actions
+  addNotification: (notification: Omit<AdminNotification, 'id' | 'createdAt'>) => Promise<void>;
   markNotificationAsRead: (id: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
   deleteNotification: (id: string) => Promise<void>;
@@ -110,7 +151,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ORDERS);
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      if (Array.isArray(parsed)) {
+        return parsed.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      }
+      return [];
     } catch {
       return [];
     }
@@ -242,12 +287,58 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }, (err) => console.warn('Firestore categories listener error:', err));
 
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    let isInitialOrdersLoad = true;
     const unsubOrders = onSnapshot(collection(db, 'orders'), (snap) => {
       const loaded: Order[] = [];
       snap.forEach((d) => loaded.push({ id: d.id, ...d.data() } as Order));
+      
+      // Sort newest orders first
+      loaded.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
       if (loaded.length > 0) {
         setOrders(loaded);
       }
+
+      // Check for newly added orders arriving in real-time
+      if (!isInitialOrdersLoad) {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const newOrd = { id: change.doc.id, ...change.doc.data() } as Order;
+            // Play luxury audio chime
+            playOrderChime();
+
+            // Trigger visual toast
+            toast.success(`🎉 New Order: #${newOrd.orderNumber || change.doc.id}`, {
+              description: `${newOrd.customerName || 'Client'} placed an order of ₹${(Number(newOrd.totalAmount) || 0).toLocaleString('en-IN')}`,
+              duration: 9000,
+            });
+
+            // Browser desktop notification
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification(`New Order #${newOrd.orderNumber || change.doc.id}`, {
+                  body: `${newOrd.customerName || 'Client'} - ₹${(Number(newOrd.totalAmount) || 0).toLocaleString('en-IN')}`,
+                  icon: '/kinora-logo.png',
+                });
+              } catch {}
+            }
+
+            // Persist notification in state & Firestore
+            addNotification({
+              title: `New Order: #${newOrd.orderNumber || change.doc.id}`,
+              message: `${newOrd.customerName || 'Patron'} placed an order of ₹${(Number(newOrd.totalAmount) || 0).toLocaleString('en-IN')}`,
+              type: 'order',
+              read: false,
+              link: '/admin/orders',
+            }).catch(() => {});
+          }
+        });
+      }
+      isInitialOrdersLoad = false;
     }, (err) => console.warn('Firestore orders listener error:', err));
 
     const unsubCustomers = onSnapshot(collection(db, 'users'), (snap) => {
@@ -654,6 +745,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Notifications
+  const addNotification = async (notifData: Omit<AdminNotification, 'id' | 'createdAt'>) => {
+    const now = new Date().toISOString();
+    const newNotif: AdminNotification = {
+      ...notifData,
+      id: `notif-${Date.now()}`,
+      createdAt: now,
+    };
+
+    setNotifications((prev) => {
+      const updated = [newNotif, ...prev];
+      try { localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    if (isFb && db) {
+      try {
+        const docRef = await addDoc(collection(db, 'notifications'), cleanData({
+          ...notifData,
+          createdAt: serverTimestamp(),
+        }));
+        newNotif.id = docRef.id;
+        setNotifications((prev) => {
+          const updated = prev.map((n) => (n.id === newNotif.id ? { ...n, id: docRef.id } : n));
+          try { localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated)); } catch {}
+          return updated;
+        });
+      } catch (err) {
+        console.warn('Firestore addNotification warning:', err);
+      }
+    }
+  };
+
   const markNotificationAsRead = async (id: string) => {
     setNotifications((prev) => {
       const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
@@ -739,6 +862,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addCoupon,
         updateCoupon,
         deleteCoupon,
+        addNotification,
         markNotificationAsRead,
         markAllNotificationsAsRead,
         deleteNotification,
