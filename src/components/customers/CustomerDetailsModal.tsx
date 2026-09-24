@@ -4,7 +4,7 @@ import { useStore } from '../../context/StoreContext';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
-import { User, Mail, Phone, MapPin, ShoppingBag, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Mail, Phone, MapPin, ShoppingBag, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 interface CustomerDetailsModalProps {
   isOpen: boolean;
@@ -23,7 +23,9 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
   if (!customer) return null;
 
   const customerOrders = orders.filter(
-    (o) => o.customerId === customer.id || o.customerEmail.toLowerCase() === customer.email.toLowerCase()
+    (o) =>
+      o.customerId === customer.id ||
+      (o.customerEmail && customer.email && o.customerEmail.toLowerCase() === customer.email.toLowerCase())
   );
 
   const handleToggleStatus = async () => {
@@ -40,7 +42,7 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={customer.name}
+      title={customer.name || 'Customer Profile'}
       subtitle={`Customer Account ID: ${customer.id}`}
       size="xl"
       footer={
@@ -66,23 +68,23 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
         <div className="flex items-center gap-4 p-4 rounded-xl bg-[#151519] border border-zinc-800">
           <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gold-primary/40 bg-black shrink-0">
             {customer.avatar ? (
-              <img src={customer.avatar} alt={customer.name} className="w-full h-full object-cover" />
+              <img src={customer.avatar} alt={customer.name || 'Patron'} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                <User className="w-8 h-8" />
+              <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold text-lg">
+                {(customer.name || 'P').charAt(0).toUpperCase()}
               </div>
             )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-white truncate">{customer.name}</h3>
+              <h3 className="text-base font-bold text-white truncate">{customer.name || 'Anonymous Patron'}</h3>
               <Badge variant={customer.status === 'active' ? 'success' : 'danger'}>
                 {customer.status === 'active' ? 'Active VIP' : 'Blocked'}
               </Badge>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5">
               <Mail className="w-3.5 h-3.5 text-zinc-500" />
-              <span>{customer.email}</span>
+              <span>{customer.email || 'No email provided'}</span>
             </p>
             {customer.phone && (
               <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5">
@@ -98,17 +100,17 @@ export const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({
           <div className="p-3 rounded-xl bg-[#101013] border border-zinc-800/80">
             <p className="text-[10px] uppercase font-semibold text-zinc-400">Total Lifetime Spend</p>
             <p className="text-base font-bold text-gold-light mt-1">
-              ₹{customer.totalSpent.toLocaleString('en-IN')}
+              ₹{(Number(customer.totalSpent) || 0).toLocaleString('en-IN')}
             </p>
           </div>
           <div className="p-3 rounded-xl bg-[#101013] border border-zinc-800/80">
             <p className="text-[10px] uppercase font-semibold text-zinc-400">Orders Completed</p>
-            <p className="text-base font-bold text-white mt-1">{customer.ordersCount}</p>
+            <p className="text-base font-bold text-white mt-1">{customer.ordersCount ?? 0}</p>
           </div>
           <div className="p-3 rounded-xl bg-[#101013] border border-zinc-800/80 col-span-2 sm:col-span-1">
             <p className="text-[10px] uppercase font-semibold text-zinc-400">Member Since</p>
             <p className="text-xs font-medium text-zinc-300 mt-1">
-              {new Date(customer.createdAt).toLocaleDateString()}
+              {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : 'N/A'}
             </p>
           </div>
         </div>

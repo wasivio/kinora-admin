@@ -29,11 +29,12 @@ export const Orders: React.FC = () => {
   // Filtering
   const filteredOrders = orders.filter((o) => {
     const matchesTab = activeTab === 'all' || o.orderStatus === activeTab;
+    const search = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (o.trackingNumber && o.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()));
+      (o.orderNumber?.toLowerCase() || '').includes(search) ||
+      (o.customerName?.toLowerCase() || '').includes(search) ||
+      (o.customerEmail?.toLowerCase() || '').includes(search) ||
+      (o.trackingNumber && o.trackingNumber.toLowerCase().includes(search));
 
     return matchesTab && matchesSearch;
   });

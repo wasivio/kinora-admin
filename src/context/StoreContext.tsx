@@ -119,7 +119,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [customers, setCustomers] = useState<Customer[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed.map((c) => ({
+          id: c?.id || `cust-${Date.now()}`,
+          name: c?.name || c?.displayName || 'Patron',
+          email: c?.email || '',
+          phone: c?.phone || '',
+          avatar: c?.avatar || undefined,
+          ordersCount: typeof c?.ordersCount === 'number' ? c.ordersCount : 0,
+          totalSpent: typeof c?.totalSpent === 'number' ? c.totalSpent : 0,
+          status: c?.status === 'blocked' ? 'blocked' : 'active',
+          address: c?.address || '',
+          createdAt: c?.createdAt || new Date().toISOString(),
+          lastOrderAt: c?.lastOrderAt || undefined,
+        }));
+      }
+      return [];
     } catch {
       return [];
     }
@@ -235,7 +252,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const unsubCustomers = onSnapshot(collection(db, 'users'), (snap) => {
       const loaded: Customer[] = [];
-      snap.forEach((d) => loaded.push({ id: d.id, ...d.data() } as Customer));
+      snap.forEach((d) => {
+        const data = d.data();
+        loaded.push({
+          id: d.id,
+          name: data.name || data.displayName || data.fullName || 'Patron',
+          email: data.email || '',
+          phone: data.phone || data.phoneNumber || '',
+          avatar: data.avatar || data.photoURL || undefined,
+          ordersCount: typeof data.ordersCount === 'number' ? data.ordersCount : 0,
+          totalSpent: typeof data.totalSpent === 'number' ? data.totalSpent : 0,
+          status: data.status === 'blocked' ? 'blocked' : 'active',
+          address: data.address || '',
+          createdAt: data.createdAt || new Date().toISOString(),
+          lastOrderAt: data.lastOrderAt || undefined,
+        });
+      });
       if (loaded.length > 0) {
         setCustomers(loaded);
       }

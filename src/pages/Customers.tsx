@@ -15,13 +15,15 @@ export const Customers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  const filteredCustomers = customers.filter((c) =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.phone && c.phone.includes(searchTerm))
-  );
+  const filteredCustomers = customers.filter((c) => {
+    const search = (searchTerm || '').toLowerCase();
+    const name = (c?.name || '').toLowerCase();
+    const email = (c?.email || '').toLowerCase();
+    const phone = c?.phone || '';
+    return name.includes(search) || email.includes(search) || phone.includes(search);
+  });
 
-  const totalClientSpend = customers.reduce((acc, c) => acc + c.totalSpent, 0);
+  const totalClientSpend = customers.reduce((acc, c) => acc + (Number(c?.totalSpent) || 0), 0);
 
   return (
     <div className="space-y-6 pb-12">
@@ -120,33 +122,33 @@ export const Customers: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-black border border-gold-primary/30 overflow-hidden shrink-0">
                           {cust.avatar ? (
-                            <img src={cust.avatar} alt={cust.name} className="w-full h-full object-cover" />
+                            <img src={cust.avatar} alt={cust.name || 'Patron'} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold">
-                              {cust.name.charAt(0)}
+                              {(cust.name || 'P').charAt(0).toUpperCase()}
                             </div>
                           )}
                         </div>
                         <div>
                           <p className="font-semibold text-white group-hover:text-gold-light transition-colors">
-                            {cust.name}
+                            {cust.name || 'Anonymous Patron'}
                           </p>
                           <p className="text-[10px] text-zinc-500 font-mono">ID: {cust.id}</p>
                         </div>
                       </div>
                     </td>
                     <td className="p-4">
-                      <p className="text-zinc-300">{cust.email}</p>
+                      <p className="text-zinc-300">{cust.email || 'No email provided'}</p>
                       {cust.phone && <p className="text-[10px] text-zinc-500">{cust.phone}</p>}
                     </td>
                     <td className="p-4 font-semibold text-zinc-300">
-                      {cust.ordersCount} order{cust.ordersCount !== 1 ? 's' : ''}
+                      {cust.ordersCount ?? 0} order{(cust.ordersCount ?? 0) !== 1 ? 's' : ''}
                     </td>
                     <td className="p-4 font-bold text-gold-light">
-                      ₹{cust.totalSpent.toLocaleString('en-IN')}
+                      ₹{(Number(cust.totalSpent) || 0).toLocaleString('en-IN')}
                     </td>
                     <td className="p-4 text-zinc-400">
-                      {new Date(cust.createdAt).toLocaleDateString()}
+                      {cust.createdAt ? new Date(cust.createdAt).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="p-4">
                       <Badge variant={cust.status === 'active' ? 'success' : 'danger'}>

@@ -31,10 +31,11 @@ export const Products: React.FC = () => {
 
   // Filter products
   const filteredProducts = products.filter((p) => {
+    const search = (searchTerm || '').toLowerCase();
     const matchesSearch =
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.SKU.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchTerm.toLowerCase());
+      (p.name?.toLowerCase() || '').includes(search) ||
+      (p.SKU?.toLowerCase() || '').includes(search) ||
+      (p.category?.toLowerCase() || '').includes(search);
 
     const matchesCategory =
       selectedCategory === 'all' || p.category === selectedCategory;
