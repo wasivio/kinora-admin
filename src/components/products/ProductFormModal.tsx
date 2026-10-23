@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Banknote, CreditCard, ShieldCheck } from 'lucide-react';
 import { Product, ProductImage, ProductVariant } from '../../types';
 import { useStore } from '../../context/StoreContext';
 import { Modal } from '../common/Modal';
@@ -36,6 +37,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [images, setImages] = useState<ProductImage[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
 
+  // Payment Settings State
+  const [allowCOD, setAllowCOD] = useState<boolean>(true);
+  const [allowUPI, setAllowUPI] = useState<boolean>(true);
+  const [codCharge, setCodCharge] = useState<string>('0');
+  const [codPreset, setCodPreset] = useState<'0' | '50' | '100' | 'custom'>('0');
+
   // Selected Category's subcategories
   const selectedCatObj = categories.find((c) => c.name === category);
 
@@ -54,6 +61,22 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setFeatured(productToEdit.featured);
       setImages(productToEdit.images || []);
       setVariants(productToEdit.variants || []);
+
+      const editAllowCOD =
+        productToEdit.allowCOD ?? productToEdit.paymentSettings?.allowCOD ?? true;
+      const editAllowUPI =
+        productToEdit.allowUPI ?? productToEdit.paymentSettings?.allowUPI ?? true;
+      const editCodCharge =
+        productToEdit.codCharge ?? productToEdit.paymentSettings?.codCharge ?? 0;
+
+      setAllowCOD(editAllowCOD);
+      setAllowUPI(editAllowUPI);
+      setCodCharge(editCodCharge.toString());
+
+      if (editCodCharge === 0) setCodPreset('0');
+      else if (editCodCharge === 50) setCodPreset('50');
+      else if (editCodCharge === 100) setCodPreset('100');
+      else setCodPreset('custom');
     } else {
       setName('');
       setDescription('');
@@ -67,9 +90,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setFeatured(false);
       setImages([]);
       setVariants([]);
+      setAllowCOD(true);
+      setAllowUPI(true);
+      setCodCharge('0');
+      setCodPreset('0');
     }
     setError(null);
   }, [productToEdit, isOpen, categories]);
+
+  const handleSelectPreset = (preset: '0' | '50' | '100' | 'custom') => {
+    setCodPreset(preset);
+    if (preset === '0') setCodCharge('0');
+    else if (preset === '50') setCodCharge('50');
+    else if (preset === '100') setCodCharge('100');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,11 +123,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setError('Please select a category.');
       return;
     }
+    if (!allowCOD && !allowUPI) {
+      setError('At least one payment method (Cash on Delivery or UPI / Online) must be enabled.');
+      return;
+    }
+    if (allowCOD && (codCharge === '' || isNaN(Number(codCharge)) || Number(codCharge) < 0)) {
+      setError('Please enter a valid COD extra charge (₹0 or greater).');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
 
     try {
+      const numericCodCharge = allowCOD ? Math.max(0, Number(codCharge) || 0) : 0;
       const prodPayload = {
         name: name.trim(),
         description: description.trim(),
@@ -108,6 +151,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         variants,
         status,
         featured,
+        allowCOD,
+        allowUPI,
+        codCharge: numericCodCharge,
+        paymentSettings: {
+          allowCOD,
+          allowUPI,
+          codCharge: numericCodCharge,
+        },
       };
 
       if (productToEdit) {
@@ -305,6 +356,157 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         {/* Section 4: Variants */}
         <div className="space-y-4 pt-2">
           <ProductVariantManager variants={variants} onChange={setVariants} />
+        </div>
+
+        {/* Section 5: Payment & Checkout Settings */}
+        <div className="space-y-4 pt-2">
+          <div className="border-b border-zinc-800 pb-1.5 flex items-center justify-between">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-gold-light">
+              Payment & Checkout Settings
+            </h4>
+            <span className="text-[10px] text-zinc-500">Per-product gateways & delivery charges</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* COD Toggle Box */}
+            <div
+              className={`p-4 rounded-xl border transition-all ${
+                allowCOD
+                  ? 'bg-zinc-900/60 border-gold-primary/40'
+                  : 'bg-zinc-950/40 border-zinc-800/80 opacity-75'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <div
+                    className={`p-2 rounded-lg ${
+                      allowCOD ? 'bg-gold-primary/20 text-gold-light' : 'bg-zinc-800 text-zinc-500'
+                    }`}
+                  >
+                    <Banknote className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">Cash on Delivery (COD)</span>
+                    <span className="text-[10px] text-zinc-400">Allow customers to pay upon delivery</span>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowCOD}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      if (!checked && !allowUPI) {
+                        setError('Cannot disable both COD and UPI. At least one payment method must remain active.');
+                        return;
+                      }
+                      setError(null);
+                      setAllowCOD(checked);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold-primary"></div>
+                </label>
+              </div>
+
+              {/* COD Extra Charge Controls (Only shown if allowCOD is true) */}
+              {allowCOD && (
+                <div className="mt-4 pt-3 border-t border-zinc-800/80 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[11px] font-medium text-zinc-300">COD Extra Handling Fee:</span>
+                    <span className="text-[11px] font-bold text-gold-light font-mono">
+                      {Number(codCharge) === 0 ? 'Free (₹0)' : `+₹${Number(codCharge).toLocaleString('en-IN')}`}
+                    </span>
+                  </div>
+
+                  {/* Preset Pills */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['0', '50', '100', 'custom'] as const).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => handleSelectPreset(preset)}
+                        className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold transition-all text-center border ${
+                          codPreset === preset
+                            ? 'bg-gold-primary text-black border-gold-primary shadow-sm'
+                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white hover:border-zinc-700'
+                        }`}
+                      >
+                        {preset === '0' ? '₹0' : preset === '50' ? '₹50' : preset === '100' ? '₹100' : 'Custom'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom Charge Input */}
+                  {codPreset === 'custom' && (
+                    <div className="pt-1">
+                      <Input
+                        label="Custom COD Fee (₹)"
+                        type="number"
+                        placeholder="Enter custom COD charge amount"
+                        value={codCharge}
+                        onChange={(e) => setCodCharge(e.target.value)}
+                        min="0"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* UPI & Online Payment Toggle Box */}
+            <div
+              className={`p-4 rounded-xl border transition-all ${
+                allowUPI
+                  ? 'bg-zinc-900/60 border-gold-primary/40'
+                  : 'bg-zinc-950/40 border-zinc-800/80 opacity-75'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <div
+                    className={`p-2 rounded-lg ${
+                      allowUPI ? 'bg-gold-primary/20 text-gold-light' : 'bg-zinc-800 text-zinc-500'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">UPI / Online Payment</span>
+                    <span className="text-[10px] text-zinc-400">Razorpay, UPI, NetBanking, Cards</span>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowUPI}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      if (!checked && !allowCOD) {
+                        setError('Cannot disable both COD and UPI. At least one payment method must remain active.');
+                        return;
+                      }
+                      setError(null);
+                      setAllowUPI(checked);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gold-primary"></div>
+                </label>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-zinc-800/80">
+                <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>
+                    {allowUPI
+                      ? 'Online payments eligible via Razorpay 256-bit gateway'
+                      : 'Online payment disabled for this product'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </form>
     </Modal>

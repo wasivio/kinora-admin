@@ -13,6 +13,12 @@ export interface ProductVariant {
   stock?: number;
 }
 
+export interface ProductPaymentSettings {
+  allowCOD: boolean;
+  allowUPI: boolean;
+  codCharge: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -28,6 +34,10 @@ export interface Product {
   variants: ProductVariant[];
   status: 'active' | 'draft' | 'out_of_stock';
   featured: boolean;
+  allowCOD?: boolean;
+  allowUPI?: boolean;
+  codCharge?: number;
+  paymentSettings?: ProductPaymentSettings;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,6 +77,7 @@ export interface Order {
   discountAmount: number;
   taxAmount: number;
   shippingAmount: number;
+  codCharge?: number;
   paymentStatus: 'paid' | 'pending' | 'failed' | 'refunded';
   orderStatus: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentMethod: string;

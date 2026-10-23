@@ -12,6 +12,7 @@ import {
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { 
   Product, 
+  ProductPaymentSettings,
   Category, 
   Order, 
   Customer, 
@@ -77,6 +78,7 @@ interface StoreContextType {
   // Product actions
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  bulkUpdatePaymentSettings: (productIds: string[], settings: Partial<ProductPaymentSettings>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   
   // Category actions
@@ -473,6 +475,73 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const bulkUpdatePaymentSettings = async (
+    productIds: string[],
+    newSettings: Partial<ProductPaymentSettings>
+  ) => {
+    if (!productIds || productIds.length === 0) return;
+    const now = new Date().toISOString();
+
+    setProducts((prev) => {
+      const updated = prev.map((p) => {
+        if (productIds.includes(p.id)) {
+          const mergedAllowCOD =
+            newSettings.allowCOD !== undefined ? newSettings.allowCOD : (p.allowCOD ?? true);
+          const mergedAllowUPI =
+            newSettings.allowUPI !== undefined ? newSettings.allowUPI : (p.allowUPI ?? true);
+          const mergedCodCharge =
+            newSettings.codCharge !== undefined ? newSettings.codCharge : (p.codCharge ?? 0);
+
+          return {
+            ...p,
+            allowCOD: mergedAllowCOD,
+            allowUPI: mergedAllowUPI,
+            codCharge: mergedCodCharge,
+            paymentSettings: {
+              allowCOD: mergedAllowCOD,
+              allowUPI: mergedAllowUPI,
+              codCharge: mergedCodCharge,
+            },
+            updatedAt: now,
+          };
+        }
+        return p;
+      });
+      try {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    if (isFb && db) {
+      const firestore = db;
+      try {
+        const updatePromises = productIds.map((id) => {
+          const docRef = doc(firestore, 'products', id);
+          const payload: any = {
+            updatedAt: serverTimestamp(),
+          };
+          if (newSettings.allowCOD !== undefined) {
+            payload.allowCOD = newSettings.allowCOD;
+            payload['paymentSettings.allowCOD'] = newSettings.allowCOD;
+          }
+          if (newSettings.allowUPI !== undefined) {
+            payload.allowUPI = newSettings.allowUPI;
+            payload['paymentSettings.allowUPI'] = newSettings.allowUPI;
+          }
+          if (newSettings.codCharge !== undefined) {
+            payload.codCharge = newSettings.codCharge;
+            payload['paymentSettings.codCharge'] = newSettings.codCharge;
+          }
+          return updateDoc(docRef, cleanData(payload));
+        });
+        await Promise.all(updatePromises);
+      } catch (err) {
+        console.warn('Firestore bulkUpdatePaymentSettings warning:', err);
+      }
+    }
+  };
+
   const deleteProduct = async (id: string) => {
     setProducts((prev) => {
       const updated = prev.filter((p) => p.id !== id);
@@ -849,6 +918,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSyncing,
         addProduct,
         updateProduct,
+        bulkUpdatePaymentSettings,
         deleteProduct,
         addCategory,
         updateCategory,

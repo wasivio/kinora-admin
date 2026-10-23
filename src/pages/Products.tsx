@@ -8,6 +8,9 @@ import {
   Star,
   LayoutGrid,
   List,
+  Banknote,
+  CreditCard,
+  X,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
@@ -17,9 +20,11 @@ import { Input } from '../components/common/Input';
 import { Badge } from '../components/common/Badge';
 import { EmptyState } from '../components/common/EmptyState';
 import { ProductFormModal } from '../components/products/ProductFormModal';
+import { toast } from 'sonner';
 
 export const Products: React.FC = () => {
-  const { products, categories, deleteProduct, updateProduct } = useStore();
+  const { products, categories, deleteProduct, updateProduct, bulkUpdatePaymentSettings } =
+    useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -28,6 +33,13 @@ export const Products: React.FC = () => {
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  // Bulk Selection & Action State
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [bulkCodCharge, setBulkCodCharge] = useState('0');
+  const [bulkCodPreset, setBulkCodPreset] = useState<'0' | '50' | '100' | 'custom'>('0');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Filter products
   const filteredProducts = products.filter((p) => {
@@ -63,6 +75,110 @@ export const Products: React.FC = () => {
 
   const handleToggleFeatured = async (prod: Product) => {
     await updateProduct(prod.id, { featured: !prod.featured });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedProductIds.length === filteredProducts.length) {
+      setSelectedProductIds([]);
+    } else {
+      setSelectedProductIds(filteredProducts.map((p) => p.id));
+    }
+  };
+
+  const handleToggleSelectOne = (id: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkEnableCOD = async () => {
+    if (selectedProductIds.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      await bulkUpdatePaymentSettings(selectedProductIds, { allowCOD: true });
+      toast.success(`Enabled Cash on Delivery (COD) for ${selectedProductIds.length} product(s)`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update products');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDisableCOD = async () => {
+    if (selectedProductIds.length === 0) return;
+    const invalidProducts = products.filter(
+      (p) => selectedProductIds.includes(p.id) && p.allowUPI === false
+    );
+    if (invalidProducts.length > 0) {
+      toast.error(
+        `Cannot disable COD for ${invalidProducts.length} product(s) with UPI already disabled. At least one payment method must remain active.`
+      );
+      return;
+    }
+    setIsBulkUpdating(true);
+    try {
+      await bulkUpdatePaymentSettings(selectedProductIds, { allowCOD: false });
+      toast.success(`Disabled Cash on Delivery (COD) for ${selectedProductIds.length} product(s)`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update products');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkEnableUPI = async () => {
+    if (selectedProductIds.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      await bulkUpdatePaymentSettings(selectedProductIds, { allowUPI: true });
+      toast.success(`Enabled UPI & Online Payment for ${selectedProductIds.length} product(s)`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update products');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDisableUPI = async () => {
+    if (selectedProductIds.length === 0) return;
+    const invalidProducts = products.filter(
+      (p) => selectedProductIds.includes(p.id) && p.allowCOD === false
+    );
+    if (invalidProducts.length > 0) {
+      toast.error(
+        `Cannot disable UPI for ${invalidProducts.length} product(s) with COD already disabled. At least one payment method must remain active.`
+      );
+      return;
+    }
+    setIsBulkUpdating(true);
+    try {
+      await bulkUpdatePaymentSettings(selectedProductIds, { allowUPI: false });
+      toast.success(`Disabled UPI & Online Payment for ${selectedProductIds.length} product(s)`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update products');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleApplyBulkCodCharge = async () => {
+    if (selectedProductIds.length === 0) return;
+    const charge = Math.max(0, Number(bulkCodCharge) || 0);
+    setIsBulkUpdating(true);
+    try {
+      await bulkUpdatePaymentSettings(selectedProductIds, {
+        codCharge: charge,
+        allowCOD: true,
+      });
+      toast.success(
+        `Applied COD charge of ₹${charge} and enabled COD for ${selectedProductIds.length} product(s)`
+      );
+      setIsBulkModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update COD charge');
+    } finally {
+      setIsBulkUpdating(false);
+    }
   };
 
   const getStatusBadge = (status: Product['status']) => {
@@ -187,11 +303,24 @@ export const Products: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="bg-[#16161a] text-[10px] text-zinc-400 uppercase tracking-wider border-b border-zinc-800">
                 <tr>
+                  <th className="p-4 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredProducts.length > 0 &&
+                        selectedProductIds.length === filteredProducts.length
+                      }
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 rounded border-zinc-700 text-gold-primary focus:ring-gold-primary bg-zinc-900 cursor-pointer"
+                      title="Select / Deselect All"
+                    />
+                  </th>
                   <th className="p-4 font-semibold">Product</th>
                   <th className="p-4 font-semibold">SKU</th>
                   <th className="p-4 font-semibold">Category</th>
                   <th className="p-4 font-semibold">Price</th>
                   <th className="p-4 font-semibold">Stock</th>
+                  <th className="p-4 font-semibold">Payment & COD</th>
                   <th className="p-4 font-semibold">Status</th>
                   <th className="p-4 font-semibold text-center">Featured</th>
                   <th className="p-4 font-semibold text-right">Actions</th>
@@ -200,11 +329,26 @@ export const Products: React.FC = () => {
               <tbody className="divide-y divide-zinc-800/60">
                 {filteredProducts.map((prod) => {
                   const primaryImg = prod.images.find((img) => img.isPrimary) || prod.images[0];
+                  const isSelected = selectedProductIds.includes(prod.id);
+                  const isCodAllowed = prod.allowCOD !== false;
+                  const isUpiAllowed = prod.allowUPI !== false;
+                  const codFee = prod.codCharge ?? 0;
+
                   return (
                     <tr
                       key={prod.id}
-                      className="hover:bg-zinc-800/30 transition-colors group"
+                      className={`hover:bg-zinc-800/30 transition-colors group ${
+                        isSelected ? 'bg-gold-primary/5' : ''
+                      }`}
                     >
+                      <td className="p-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectOne(prod.id)}
+                          className="w-4 h-4 rounded border-zinc-700 text-gold-primary focus:ring-gold-primary bg-zinc-900 cursor-pointer"
+                        />
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-xl bg-black border border-zinc-800 overflow-hidden shrink-0 group-hover:border-gold-primary/50 transition-colors">
@@ -263,6 +407,33 @@ export const Products: React.FC = () => {
                           {prod.stock} units
                         </span>
                       </td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-1 items-start">
+                          {isCodAllowed ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/50 border border-emerald-800/70 text-emerald-300">
+                              <Banknote className="w-3 h-3" />
+                              <span>{codFee > 0 ? `COD +₹${codFee}` : 'COD Free'}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-950/50 border border-red-800/70 text-red-300">
+                              <Banknote className="w-3 h-3" />
+                              <span>COD Off</span>
+                            </span>
+                          )}
+
+                          {isUpiAllowed ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-gold-primary/10 border border-gold-primary/30 text-gold-light">
+                              <CreditCard className="w-3 h-3" />
+                              <span>UPI Active</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-950/50 border border-red-800/70 text-red-300">
+                              <CreditCard className="w-3 h-3" />
+                              <span>UPI Off</span>
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-4">{getStatusBadge(prod.status)}</td>
                       <td className="p-4 text-center">
                         <button
@@ -310,10 +481,17 @@ export const Products: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredProducts.map((prod) => {
             const primaryImg = prod.images.find((img) => img.isPrimary) || prod.images[0];
+            const isSelected = selectedProductIds.includes(prod.id);
+            const isCodAllowed = prod.allowCOD !== false;
+            const isUpiAllowed = prod.allowUPI !== false;
+            const codFee = prod.codCharge ?? 0;
+
             return (
               <Card
                 key={prod.id}
-                className="p-0 overflow-hidden flex flex-col group hover:border-gold-primary/50 transition-all shadow-card-dark"
+                className={`p-0 overflow-hidden flex flex-col group hover:border-gold-primary/50 transition-all shadow-card-dark ${
+                  isSelected ? 'ring-2 ring-gold-primary' : ''
+                }`}
               >
                 {/* Image Box */}
                 <div className="relative aspect-square bg-zinc-950 overflow-hidden">
@@ -329,13 +507,21 @@ export const Products: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Featured Star Badge */}
-                  {prod.featured && (
-                    <div className="absolute top-2.5 left-2.5 bg-gradient-to-r from-gold-primary to-amber-600 text-black text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg">
-                      <Star className="w-2.5 h-2.5 fill-black" />
-                      <span>Featured</span>
-                    </div>
-                  )}
+                  {/* Top-Left: Checkbox & Featured Badge */}
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleSelectOne(prod.id)}
+                      className="w-4 h-4 rounded border-zinc-700 text-gold-primary focus:ring-gold-primary bg-black/70 cursor-pointer shadow-md"
+                    />
+                    {prod.featured && (
+                      <div className="bg-gradient-to-r from-gold-primary to-amber-600 text-black text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full flex items-center gap-1 shadow-lg">
+                        <Star className="w-2.5 h-2.5 fill-black" />
+                        <span>Featured</span>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Status Overlay */}
                   <div className="absolute top-2.5 right-2.5">
@@ -353,6 +539,33 @@ export const Products: React.FC = () => {
                     <h4 className="text-sm font-semibold text-white line-clamp-1 group-hover:text-gold-light transition-colors">
                       {prod.name}
                     </h4>
+
+                    {/* Payment Settings Badges in Grid */}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                      {isCodAllowed ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-950/50 border border-emerald-800/70 text-emerald-300">
+                          <Banknote className="w-3 h-3" />
+                          <span>{codFee > 0 ? `COD +₹${codFee}` : 'COD Free'}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-950/50 border border-red-800/70 text-red-300">
+                          <Banknote className="w-3 h-3" />
+                          <span>COD Off</span>
+                        </span>
+                      )}
+
+                      {isUpiAllowed ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gold-primary/10 border border-gold-primary/30 text-gold-light">
+                          <CreditCard className="w-3 h-3" />
+                          <span>UPI Active</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-950/50 border border-red-800/70 text-red-300">
+                          <CreditCard className="w-3 h-3" />
+                          <span>UPI Off</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-end justify-between pt-2 border-t border-zinc-800">
@@ -395,6 +608,156 @@ export const Products: React.FC = () => {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Floating Bulk Actions Toolbar */}
+      {selectedProductIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#141418]/95 backdrop-blur-md border border-gold-primary/50 rounded-2xl shadow-2xl px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 max-w-4xl w-[94vw]">
+          <div className="flex items-center gap-2.5">
+            <span className="px-2.5 py-1 rounded-full bg-gold-primary text-black text-xs font-extrabold flex items-center justify-center">
+              {selectedProductIds.length}
+            </span>
+            <span className="text-xs text-white font-medium whitespace-nowrap">
+              Product(s) Selected
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBulkEnableCOD}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-700/80 text-emerald-300 hover:bg-emerald-900/80 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <Banknote className="w-3.5 h-3.5" />
+              <span>Enable COD</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBulkDisableCOD}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg bg-red-950/70 border border-red-700/80 text-red-300 hover:bg-red-900/80 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <Banknote className="w-3.5 h-3.5" />
+              <span>Disable COD</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBulkEnableUPI}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg bg-gold-primary/15 border border-gold-primary/40 text-gold-light hover:bg-gold-primary/25 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Enable UPI</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleBulkDisableUPI}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg bg-red-950/70 border border-red-700/80 text-red-300 hover:bg-red-900/80 text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              <span>Disable UPI</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsBulkModalOpen(true)}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700 text-zinc-200 hover:border-gold-primary hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              <span>Set COD Charge</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedProductIds([])}
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors ml-1"
+              title="Deselect All"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Set COD Extra Charge Modal */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[#121215] border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div>
+              <h3 className="text-base font-semibold text-white">
+                Set Bulk COD Extra Charge
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                Configure delivery handling fee for {selectedProductIds.length} selected product(s).
+                This will automatically ensure COD is enabled.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <label className="block text-xs font-medium text-zinc-300">
+                Quick Fee Presets:
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {(['0', '50', '100', 'custom'] as const).map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => {
+                      setBulkCodPreset(preset);
+                      if (preset === '0') setBulkCodCharge('0');
+                      else if (preset === '50') setBulkCodCharge('50');
+                      else if (preset === '100') setBulkCodCharge('100');
+                    }}
+                    className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all text-center ${
+                      bulkCodPreset === preset
+                        ? 'bg-gold-primary text-black border-gold-primary shadow-sm'
+                        : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
+                    }`}
+                  >
+                    {preset === '0' ? 'Free (₹0)' : preset === '50' ? '₹50' : preset === '100' ? '₹100' : 'Custom'}
+                  </button>
+                ))}
+              </div>
+
+              {bulkCodPreset === 'custom' && (
+                <div className="pt-2">
+                  <Input
+                    label="Custom COD Fee (₹)"
+                    type="number"
+                    placeholder="Enter amount"
+                    value={bulkCodCharge}
+                    onChange={(e) => setBulkCodCharge(e.target.value)}
+                    min="0"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800/80">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsBulkModalOpen(false)}
+                disabled={isBulkUpdating}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleApplyBulkCodCharge}
+                isLoading={isBulkUpdating}
+              >
+                Apply to {selectedProductIds.length} Products
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
