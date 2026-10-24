@@ -6,7 +6,7 @@ import { Modal } from '../common/Modal';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { ProductImageUploader } from './ProductImageUploader';
-import { SizeChartUploader } from './SizeChartUploader';
+import { SizeChartUploader, sanitizeImageUrl } from './SizeChartUploader';
 import { ProductVariantManager } from './ProductVariantManager';
 
 interface ProductFormModalProps {
@@ -66,9 +66,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
       const editSizeChart =
         productToEdit.sizeChart && productToEdit.sizeChart.url
-          ? { url: productToEdit.sizeChart.url, publicId: productToEdit.sizeChart.publicId }
+          ? { url: sanitizeImageUrl(productToEdit.sizeChart.url), publicId: productToEdit.sizeChart.publicId }
           : productToEdit.sizeChartUrl
-          ? { url: productToEdit.sizeChartUrl, publicId: productToEdit.sizeChartPublicId || undefined }
+          ? { url: sanitizeImageUrl(productToEdit.sizeChartUrl), publicId: productToEdit.sizeChartPublicId || undefined }
           : null;
       setSizeChart(editSizeChart);
 
@@ -148,6 +148,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
     try {
       const numericCodCharge = allowCOD ? Math.max(0, Number(codCharge) || 0) : 0;
+      const cleanSizeChartUrl = sizeChart?.url ? sanitizeImageUrl(sizeChart.url) : null;
+      const cleanSizeChart = cleanSizeChartUrl
+        ? {
+            url: cleanSizeChartUrl,
+            publicId: sizeChart?.publicId || 'url_external',
+          }
+        : null;
+
       const prodPayload = {
         name: name.trim(),
         description: description.trim(),
@@ -160,9 +168,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         SKU: sku.trim() || `KN-${Math.floor(1000 + Math.random() * 9000)}`,
         images,
         variants,
-        sizeChart: sizeChart && sizeChart.url ? { url: sizeChart.url, publicId: sizeChart.publicId || '' } : null,
-        sizeChartUrl: sizeChart?.url || null,
-        sizeChartPublicId: sizeChart?.publicId || null,
+        sizeChart: cleanSizeChart,
+        sizeChartUrl: cleanSizeChartUrl,
+        sizeChartPublicId: cleanSizeChart?.publicId || null,
         status,
         featured,
         allowCOD,

@@ -77,35 +77,40 @@ export const uploadImageUrlToCloudinary = async (
   imageUrl: string,
   folder: string = 'kinora/products'
 ): Promise<{ url: string; publicId: string }> => {
+  const cleanUrl = imageUrl.trim().replace(/^["']+|["']+$/g, '').trim();
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
   if (isCloudinaryConfigured()) {
-    const formData = new FormData();
-    formData.append('file', imageUrl);
-    formData.append('upload_preset', uploadPreset!);
-    formData.append('folder', folder);
+    try {
+      const formData = new FormData();
+      formData.append('file', cleanUrl);
+      formData.append('upload_preset', uploadPreset!);
+      formData.append('folder', folder);
 
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      {
-        method: 'POST',
-        body: formData,
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      if (response.ok) {
+        const data: CloudinaryUploadResponse = await response.json();
+        return {
+          url: data.secure_url || data.url,
+          publicId: data.public_id,
+        };
       }
-    );
-
-    if (response.ok) {
-      const data: CloudinaryUploadResponse = await response.json();
-      return {
-        url: data.secure_url || data.url,
-        publicId: data.public_id,
-      };
+    } catch (err) {
+      console.warn('Cloudinary URL upload failed, using direct URL:', err);
     }
   }
 
-  // Return direct validated URL with mock public ID
+  // Return direct validated URL with fallback public ID
   return {
-    url: imageUrl,
+    url: cleanUrl,
     publicId: `url_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
   };
 };
