@@ -151,10 +151,121 @@ export const MeeshoShippingLabelModal: React.FC<MeeshoShippingLabelModalProps> =
 
   const handlePrint = () => {
     // If tracking number was not saved, update it in background
-    if (!order.trackingNumber && awbNumber) {
+    if (order && !order.trackingNumber && awbNumber) {
       updateOrderStatus(order.id, order.orderStatus, awbNumber).catch(() => {});
     }
-    window.print();
+
+    const labelElem = document.getElementById('meesho-thermal-label-container');
+    if (!labelElem) {
+      window.print();
+      return;
+    }
+
+    // Clean up old print iframe if present
+    const oldIframe = document.getElementById('thermal-print-iframe');
+    if (oldIframe) {
+      oldIframe.remove();
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'thermal-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    // Collect all stylesheets from the document
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((el) => el.outerHTML)
+      .join('\n');
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Label_${orderNumber || 'PRINT'}</title>
+          ${styles}
+          <style>
+            @page {
+              size: 4in 6in;
+              margin: 0 !important;
+            }
+            *, *::before, *::after {
+              box-sizing: border-box !important;
+            }
+            html, body {
+              width: 4in !important;
+              height: 6in !important;
+              max-width: 4in !important;
+              max-height: 6in !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              overflow: hidden !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              page-break-after: avoid !important;
+              page-break-before: avoid !important;
+              break-after: avoid !important;
+              break-before: avoid !important;
+            }
+            #print-wrapper {
+              width: 4in !important;
+              height: 6in !important;
+              max-width: 4in !important;
+              max-height: 6in !important;
+              overflow: hidden !important;
+              margin: 0 !important;
+              padding: 4px !important;
+              box-sizing: border-box !important;
+            }
+            #meesho-thermal-label-container {
+              width: 100% !important;
+              height: 100% !important;
+              max-height: 100% !important;
+              overflow: hidden !important;
+              box-sizing: border-box !important;
+              box-shadow: none !important;
+              border: 2px solid #000000 !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="print-wrapper">
+            ${labelElem.outerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    // Allow styles to apply, then trigger print
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch {
+        window.print();
+      } finally {
+        setTimeout(() => {
+          iframe.remove();
+        }, 2500);
+      }
+    }, 300);
   };
 
   const handleCopyAWB = () => {
@@ -208,13 +319,15 @@ export const MeeshoShippingLabelModal: React.FC<MeeshoShippingLabelModalProps> =
   const render4x6Label = () => (
     <div
       id="meesho-thermal-label-container"
-      className="w-[384px] min-h-[576px] bg-white text-black font-sans text-[11px] leading-tight p-2.5 border-2 border-black flex flex-col justify-between shadow-2xl select-text shrink-0"
+      className="w-[384px] h-[576px] max-h-[576px] bg-white text-black font-sans text-[11px] leading-tight p-2 border-2 border-black flex flex-col justify-between shadow-2xl select-text shrink-0 overflow-hidden"
       style={{
         width: '4in',
-        minHeight: '6in',
+        height: '6in',
+        maxHeight: '6in',
         boxSizing: 'border-box',
         backgroundColor: '#ffffff',
         color: '#000000',
+        overflow: 'hidden',
       }}
     >
       {/* ======================================================== */}
@@ -248,8 +361,8 @@ export const MeeshoShippingLabelModal: React.FC<MeeshoShippingLabelModalProps> =
           <BarcodeSVG
             value={awbNumber}
             format="CODE128"
-            width={1.6}
-            height={44}
+            width={1.5}
+            height={36}
             displayValue={false}
           />
           <div className="font-mono text-xs font-bold tracking-widest mt-0.5">

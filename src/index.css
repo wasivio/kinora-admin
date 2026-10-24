@@ -56,38 +56,54 @@
 }
 
 /* ======================================================== */
-/* 4x6 THERMAL SHIPPING LABEL PRINT STYLES (MEESHO FORMAT) */
+/* 4x6 THERMAL SHIPPING LABEL PRINT STYLES                  */
 /* ======================================================== */
 @page {
   size: 4in 6in;
-  margin: 0;
+  margin: 0 !important;
 }
 
 @media print {
   html, body {
     width: 4in !important;
     height: 6in !important;
+    max-width: 4in !important;
+    max-height: 6in !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: hidden !important;
     background: #ffffff !important;
     color: #000000 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    break-after: avoid !important;
+    break-before: avoid !important;
   }
 
-  /* Hide all app chrome, sidebars, modals, backdrops */
+  /* Completely constrain root layout so background does not span multiple pages */
+  #root,
+  .fixed,
+  .overflow-y-auto {
+    height: 6in !important;
+    max-height: 6in !important;
+    overflow: hidden !important;
+  }
+
+  /* Hide everything except the thermal label */
   body * {
     visibility: hidden !important;
   }
 
-  /* Show ONLY the Meesho 4x6 thermal label container */
+  /* Show ONLY the thermal label container and its children */
   #meesho-thermal-label-container,
   #meesho-thermal-label-container * {
     visibility: visible !important;
   }
 
   #meesho-thermal-label-container {
-    position: fixed !important;
+    position: absolute !important; /* CRITICAL: absolute prevents repeat on multiple pages */
     left: 0 !important;
     top: 0 !important;
     width: 4in !important;
@@ -95,7 +111,7 @@
     max-width: 4in !important;
     max-height: 6in !important;
     margin: 0 !important;
-    padding: 0.1in !important;
+    padding: 6px !important;
     box-sizing: border-box !important;
     background: #ffffff !important;
     color: #000000 !important;
@@ -104,6 +120,8 @@
     overflow: hidden !important;
     page-break-after: avoid !important;
     page-break-inside: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
