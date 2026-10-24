@@ -11,6 +11,7 @@ import {
   Banknote,
   CreditCard,
   X,
+  Ruler,
 } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
@@ -366,9 +367,20 @@ export const Products: React.FC = () => {
                           </div>
                           <div className="min-w-0 max-w-xs">
                             <p className="font-semibold text-white truncate text-xs">{prod.name}</p>
-                            <p className="text-[10px] text-zinc-400 mt-0.5 truncate">
-                              {prod.variants?.length || 0} variant(s) • {prod.images?.length || 0} image(s)
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[10px] text-zinc-400 truncate">
+                                {prod.variants?.length || 0} variant(s) • {prod.images?.length || 0} image(s)
+                              </span>
+                              {(prod.sizeChart?.url || prod.sizeChartUrl) && (
+                                <span
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-medium text-amber-400 bg-amber-950/50 border border-amber-800/60 px-1.5 py-0.2 rounded"
+                                  title="Size chart attached"
+                                >
+                                  <Ruler className="w-2.5 h-2.5" />
+                                  <span>Size Chart</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -563,6 +575,16 @@ export const Products: React.FC = () => {
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-950/50 border border-red-800/70 text-red-300">
                           <CreditCard className="w-3 h-3" />
                           <span>UPI Off</span>
+                        </span>
+                      )}
+
+                      {(prod.sizeChart?.url || prod.sizeChartUrl) && (
+                        <span
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-950/50 border border-amber-800/70 text-amber-300"
+                          title="Size chart attached"
+                        >
+                          <Ruler className="w-3 h-3" />
+                          <span>Size Chart</span>
                         </span>
                       )}
                     </div>

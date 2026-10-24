@@ -13,6 +13,11 @@ export interface ProductVariant {
   stock?: number;
 }
 
+export interface SizeChart {
+  url: string;
+  publicId?: string;
+}
+
 export interface ProductPaymentSettings {
   allowCOD: boolean;
   allowUPI: boolean;
@@ -32,6 +37,9 @@ export interface Product {
   SKU: string;
   images: ProductImage[];
   variants: ProductVariant[];
+  sizeChart?: SizeChart | null;
+  sizeChartUrl?: string | null;
+  sizeChartPublicId?: string | null;
   status: 'active' | 'draft' | 'out_of_stock';
   featured: boolean;
   allowCOD?: boolean;

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Banknote, CreditCard, ShieldCheck } from 'lucide-react';
-import { Product, ProductImage, ProductVariant } from '../../types';
+import { Product, ProductImage, ProductVariant, SizeChart } from '../../types';
 import { useStore } from '../../context/StoreContext';
 import { Modal } from '../common/Modal';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
 import { ProductImageUploader } from './ProductImageUploader';
+import { SizeChartUploader } from './SizeChartUploader';
 import { ProductVariantManager } from './ProductVariantManager';
 
 interface ProductFormModalProps {
@@ -36,6 +37,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [featured, setFeatured] = useState(false);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [sizeChart, setSizeChart] = useState<SizeChart | null>(null);
 
   // Payment Settings State
   const [allowCOD, setAllowCOD] = useState<boolean>(true);
@@ -61,6 +63,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setFeatured(productToEdit.featured);
       setImages(productToEdit.images || []);
       setVariants(productToEdit.variants || []);
+
+      const editSizeChart =
+        productToEdit.sizeChart && productToEdit.sizeChart.url
+          ? { url: productToEdit.sizeChart.url, publicId: productToEdit.sizeChart.publicId }
+          : productToEdit.sizeChartUrl
+          ? { url: productToEdit.sizeChartUrl, publicId: productToEdit.sizeChartPublicId || undefined }
+          : null;
+      setSizeChart(editSizeChart);
 
       const editAllowCOD =
         productToEdit.allowCOD ?? productToEdit.paymentSettings?.allowCOD ?? true;
@@ -90,6 +100,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setFeatured(false);
       setImages([]);
       setVariants([]);
+      setSizeChart(null);
       setAllowCOD(true);
       setAllowUPI(true);
       setCodCharge('0');
@@ -149,6 +160,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         SKU: sku.trim() || `KN-${Math.floor(1000 + Math.random() * 9000)}`,
         images,
         variants,
+        sizeChart: sizeChart && sizeChart.url ? { url: sizeChart.url, publicId: sizeChart.publicId || '' } : null,
+        sizeChartUrl: sizeChart?.url || null,
+        sizeChartPublicId: sizeChart?.publicId || null,
         status,
         featured,
         allowCOD,
@@ -353,12 +367,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           <ProductImageUploader images={images} onChange={setImages} />
         </div>
 
-        {/* Section 4: Variants */}
+        {/* Section 4: Size Chart Management */}
+        <div className="space-y-4 pt-2">
+          <SizeChartUploader sizeChart={sizeChart} onChange={setSizeChart} />
+        </div>
+
+        {/* Section 5: Variants */}
         <div className="space-y-4 pt-2">
           <ProductVariantManager variants={variants} onChange={setVariants} />
         </div>
 
-        {/* Section 5: Payment & Checkout Settings */}
+        {/* Section 6: Payment & Checkout Settings */}
         <div className="space-y-4 pt-2">
           <div className="border-b border-zinc-800 pb-1.5 flex items-center justify-between">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-gold-light">

@@ -23,7 +23,8 @@ export const isCloudinaryConfigured = (): boolean => {
  * Never requires or exposes the Cloudinary API Secret.
  */
 export const uploadImageToCloudinary = async (
-  file: File
+  file: File,
+  folder: string = 'kinora/products'
 ): Promise<{ url: string; publicId: string }> => {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
@@ -33,7 +34,7 @@ export const uploadImageToCloudinary = async (
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', uploadPreset!);
-    formData.append('folder', 'kinora/products');
+    formData.append('folder', folder);
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -73,7 +74,8 @@ export const uploadImageToCloudinary = async (
  * Upload an image URL to Cloudinary (or validate and return for demo)
  */
 export const uploadImageUrlToCloudinary = async (
-  imageUrl: string
+  imageUrl: string,
+  folder: string = 'kinora/products'
 ): Promise<{ url: string; publicId: string }> => {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
@@ -82,7 +84,7 @@ export const uploadImageUrlToCloudinary = async (
     const formData = new FormData();
     formData.append('file', imageUrl);
     formData.append('upload_preset', uploadPreset!);
-    formData.append('folder', 'kinora/products');
+    formData.append('folder', folder);
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
