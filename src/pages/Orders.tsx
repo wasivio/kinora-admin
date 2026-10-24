@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Search, Eye, Clock, Sparkles } from 'lucide-react';
+import { ShoppingBag, Search, Eye, Clock, Sparkles, Printer } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { Card } from '../components/common/Card';
@@ -8,6 +8,7 @@ import { Input } from '../components/common/Input';
 import { Badge } from '../components/common/Badge';
 import { EmptyState } from '../components/common/EmptyState';
 import { OrderDetailsModal } from '../components/orders/OrderDetailsModal';
+import { MeeshoShippingLabelModal } from '../components/orders/MeeshoShippingLabelModal';
 
 export const Orders: React.FC = () => {
   const { orders } = useStore();
@@ -15,6 +16,7 @@ export const Orders: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [printLabelOrder, setPrintLabelOrder] = useState<Order | null>(null);
 
   // Always sort newest orders on top
   const sortedOrders = [...orders].sort((a, b) => {
@@ -208,17 +210,31 @@ export const Orders: React.FC = () => {
                       ₹{ord.totalAmount.toLocaleString('en-IN')}
                     </td>
                     <td className="p-4 text-right">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedOrder(ord);
-                        }}
-                        leftIcon={<Eye className="w-3.5 h-3.5 text-gold-primary" />}
-                      >
-                        Manage
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPrintLabelOrder(ord);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-700/80 text-zinc-300 hover:text-gold-light hover:border-gold-primary transition-colors flex items-center gap-1.5 text-xs font-medium"
+                          title="Print Meesho 4x6 Thermal Label & Invoice"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-gold-primary" />
+                          <span>4x6 Label</span>
+                        </button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedOrder(ord);
+                          }}
+                          leftIcon={<Eye className="w-3.5 h-3.5 text-gold-primary" />}
+                        >
+                          Manage
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -233,6 +249,13 @@ export const Orders: React.FC = () => {
         isOpen={Boolean(selectedOrder)}
         onClose={() => setSelectedOrder(null)}
         order={selectedOrder}
+      />
+
+      {/* Meesho Style 4x6 Shipping Label & Tax Invoice Modal */}
+      <MeeshoShippingLabelModal
+        isOpen={Boolean(printLabelOrder)}
+        onClose={() => setPrintLabelOrder(null)}
+        order={printLabelOrder}
       />
     </div>
   );

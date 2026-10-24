@@ -6,6 +6,7 @@ import { Button } from '../common/Button';
 import { Badge } from '../common/Badge';
 import { Input } from '../common/Input';
 import { Printer, Truck, CreditCard } from 'lucide-react';
+import { MeeshoShippingLabelModal } from './MeeshoShippingLabelModal';
 
 interface OrderDetailsModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<Order['paymentStatus']>(order?.paymentStatus || 'paid');
   const [trackingNumber, setTrackingNumber] = useState(order?.trackingNumber || '');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isLabelModalOpen, setIsLabelModalOpen] = useState(false);
 
   // Sync state when order changes
   React.useEffect(() => {
@@ -44,10 +46,6 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
     } finally {
       setIsUpdating(false);
     }
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   const getStatusBadge = (status: Order['orderStatus']) => {
@@ -99,10 +97,10 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handlePrint}
-            leftIcon={<Printer className="w-4 h-4" />}
+            onClick={() => setIsLabelModalOpen(true)}
+            leftIcon={<Printer className="w-4 h-4 text-gold-primary" />}
           >
-            Print Invoice
+            Print 4x6 Label & Invoice
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             Close
@@ -281,12 +279,18 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
                   <span>-₹{order.discountAmount.toLocaleString('en-IN')}</span>
                 </div>
               )}
+              {order.codCharge && order.codCharge > 0 && (
+                <div className="flex justify-between text-amber-400 font-medium">
+                  <span>COD Extra Handling Fee</span>
+                  <span>+₹{order.codCharge.toLocaleString('en-IN')}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>Estimated Tax</span>
                 <span className="text-zinc-200">₹{order.taxAmount.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
-                <span>Insured White-Glove Shipping</span>
+                <span>Insured Shipping</span>
                 <span className="text-zinc-200">
                   {order.shippingAmount === 0 ? 'Complimentary' : `₹${order.shippingAmount.toLocaleString('en-IN')}`}
                 </span>
@@ -299,6 +303,13 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Meesho Style 4x6 Shipping Label & Tax Invoice Modal */}
+      <MeeshoShippingLabelModal
+        isOpen={isLabelModalOpen}
+        onClose={() => setIsLabelModalOpen(false)}
+        order={order}
+      />
     </Modal>
   );
 };
